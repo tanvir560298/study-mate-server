@@ -1,23 +1,38 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
+const cors =require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+/* ------------------- CORS Setup ------------------- */
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "https://study-mate-client.vercel.app", // ✅ তোমার frontend URL বসাও
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000",
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
 
 app.use(express.json());
+
+/* ------------------- MongoDB Setup ------------------- */
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@studymate-cluster.2teoe59.mongodb.net/?retryWrites=true&w=majority&appName=studymate-cluster`;
 
@@ -31,16 +46,20 @@ const client = new MongoClient(uri, {
 
 const isValidObjectId = (id) => ObjectId.isValid(id);
 
+/* ------------------- Main Function ------------------- */
+
 async function run() {
   try {
     await client.connect();
-    await client.db("admin").command({ ping: 1 });
     console.log("MongoDB connected ✅");
 
     const db = client.db("studymateDB");
+
     const usersCollection = db.collection("users");
     const partnersCollection = db.collection("partners");
     const connectionsCollection = db.collection("connections");
+
+    /* ---------------- USERS Routes ---------------- */
 
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -51,9 +70,9 @@ async function run() {
       const user = req.body;
 
       if (!user?.name || !user?.email) {
-        return res
-          .status(400)
-          .send({ message: "name and email are required" });
+        return res.status(400).send({
+          message: "name and email are required",
+        });
       }
 
       const result = await usersCollection.insertOne(user);
@@ -74,44 +93,15 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/:id", async (req, res) => {
-      const id = req.params.id;
-
-      if (!isValidObjectId(id)) {
-        return res.status(400).send({ message: "Invalid user id" });
-      }
-
-      const updatedData = req.body;
-
-      const result = await usersCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedData }
-      );
-
-      res.send(result);
-    });
-
-    app.delete("/users/:id", async (req, res) => {
-      const id = req.params.id;
-
-      if (!isValidObjectId(id)) {
-        return res.status(400).send({ message: "Invalid user id" });
-      }
-
-      const result = await usersCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-
-      res.send(result);
-    });
+    /* ---------------- PARTNERS Routes ---------------- */
 
     app.post("/partners", async (req, res) => {
       const partner = req.body;
 
       if (!partner?.name || !partner?.subject || !partner?.email) {
-        return res
-          .status(400)
-          .send({ message: "name, subject and email are required" });
+        return res.status(400).send({
+          message: "name, subject and email are required",
+        });
       }
 
       partner.rating = Number(partner.rating ?? 0);
@@ -170,44 +160,15 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/partners/:id", async (req, res) => {
-      const id = req.params.id;
-
-      if (!isValidObjectId(id)) {
-        return res.status(400).send({ message: "Invalid partner id" });
-      }
-
-      const updatedData = req.body;
-
-      const result = await partnersCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedData }
-      );
-
-      res.send(result);
-    });
-
-    app.delete("/partners/:id", async (req, res) => {
-      const id = req.params.id;
-
-      if (!isValidObjectId(id)) {
-        return res.status(400).send({ message: "Invalid partner id" });
-      }
-
-      const result = await partnersCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-
-      res.send(result);
-    });
+    /* ---------------- CONNECTIONS Routes ---------------- */
 
     app.post("/connections", async (req, res) => {
       const { partnerId, requesterEmail } = req.body;
 
       if (!partnerId || !requesterEmail) {
-        return res
-          .status(400)
-          .send({ message: "partnerId and requesterEmail are required" });
+        return res.status(400).send({
+          message: "partnerId and requesterEmail are required",
+        });
       }
 
       if (!isValidObjectId(partnerId)) {
@@ -220,9 +181,9 @@ async function run() {
       });
 
       if (existing) {
-        return res
-          .status(409)
-          .send({ message: "You already sent request to this partner" });
+        return res.status(409).send({
+          message: "You already sent request to this partner",
+        });
       }
 
       const partner = await partnersCollection.findOne({
@@ -245,6 +206,7 @@ async function run() {
         partnerImage: partner.profileimage,
         subject: partner.subject,
         studyMode: partner.studyMode,
+        status: "pending",
         createdAt: new Date(),
       };
 
@@ -273,11 +235,9 @@ async function run() {
         return res.status(400).send({ message: "Invalid connection id" });
       }
 
-      const updatedData = req.body;
-
       const result = await connectionsCollection.updateOne(
         { _id: new ObjectId(id) },
-        { $set: updatedData }
+        { $set: req.body }
       );
 
       res.send(result);
@@ -297,17 +257,25 @@ async function run() {
       res.send(result);
     });
 
-    console.log("Routes are ready ✅");
+    console.log("All Routes Ready ✅");
   } catch (error) {
-    console.log("MongoDB connection failed ❌", error.message);
+    console.log("MongoDB Connection Failed ❌", error.message);
   }
 }
 
 run();
 
+/* ------------------- Root + Health Check ------------------- */
+
 app.get("/", (req, res) => {
   res.send("StudyMate Server is running 🚀");
 });
+
+app.get("/health", (req, res) => {
+  res.send({ ok: true, message: "Server is healthy ✅" });
+});
+
+/* ------------------- Start Server ------------------- */
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
