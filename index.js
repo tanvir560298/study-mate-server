@@ -12,7 +12,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:3000",
-  "https://study-mate-client.vercel.app", // ✅ তোমার frontend URL বসাও
+  "https://study-mate-client-xi.vercel.app",
 ];
 
 app.use(
