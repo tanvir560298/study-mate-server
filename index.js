@@ -34,7 +34,7 @@ app.use(express.json());
 
 /* ------------------- MongoDB Setup ------------------- */
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@studymate-cluster.2teoe59.mongodb.net/?retryWrites=true&w=majority&appName=studymate-cluster`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@studymate-cluster.2teoe59.mongodb.net/studymateDB?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
   serverApi: {
