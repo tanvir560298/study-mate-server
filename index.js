@@ -1,10 +1,9 @@
 require("dotenv").config();
 const express = require("express");
-const cors =require("cors");
+const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
-const port = process.env.PORT || 3000;
 
 /* ------------------- CORS Setup ------------------- */
 
@@ -34,7 +33,8 @@ app.use(express.json());
 
 /* ------------------- MongoDB Setup ------------------- */
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@studymate-cluster.2teoe59.mongodb.net/studymateDB?retryWrites=true&w=majority`;
+// ✅ DB name url এ দেওয়া আছে (studymateDB)
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@studymate-cluster.2teoe59.mongodb.net/studymateDB?retryWrites=true&w=majority&appName=studymate-cluster`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -275,8 +275,6 @@ app.get("/health", (req, res) => {
   res.send({ ok: true, message: "Server is healthy ✅" });
 });
 
-/* ------------------- Start Server ------------------- */
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+/* ------------------- IMPORTANT FOR VERCEL ------------------- */
+// ✅ Vercel এ app.listen() দিবা না
+module.exports = app;
